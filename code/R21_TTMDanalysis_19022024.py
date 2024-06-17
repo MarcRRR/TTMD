@@ -4,6 +4,7 @@ import subprocess
 from math import sqrt
 from GET_RES_from_top import GET_RES_from_top
 
+# this function checks if we have the files needed for this program available
 
 def check_files(lig, dyn_num):
 	if not os.path.exists("TTMD"):
@@ -21,6 +22,13 @@ def check_files(lig, dyn_num):
 		print("no {} file has been found".format(suffix))
 	os.chdir("..")
 	return 
+
+
+
+
+
+
+# this function uses cpptraj to remove water molecules from the trajectory file
 
 def cpptraj_rmWat(lig, clean=False):
 
@@ -61,6 +69,8 @@ def cpptraj_rmWat(lig, clean=False):
 	return outfile
 
 
+# this function uses cpptraj to separate the trajectory containing the receptor and several ligands
+# to the receptor and a singular ligand
 
 def cpptraj_LigByLig(traj_file, clean=False):
 
@@ -114,6 +124,7 @@ def cpptraj_LigByLig(traj_file, clean=False):
 
 	return lig_trajs
 
+# this function uses cpptraj to extract a pdb image of the first frame of the dynamic
 
 def cpptraj_OutPDBFirst(traj_file, clean=False):
 
@@ -159,7 +170,91 @@ def cpptraj_OutPDBFirst(traj_file, clean=False):
 	return lig_pdbs
 
 
-def read_prot (pdb):
+def cpptraj_RMSD(traj_file, clean=False):
+
+	parm_OneLigNoWat = "[OneLigNoWat]"
+	count_ligand = num_res_PROT + 1
+	top_OneLigNoWat = "OneLig.NoWat." + top_file
+
+	for i in traj_file:
+
+		name_nc_lig = "lig_" + str(count_ligand) + ".nc"
+
+
+		file_cpptraj_inp  = "Dinptrj_rmsd"
+		file_cpptraj_out  = "Dinptrj_rmsd_{}.out".format(i[:-3])
+		file_cpptraj      = open (file_cpptraj_inp,"w")
+	
+		file_cpptraj.write('cpptraj > {} << EOF'.format(file_cpptraj_out)+ter)
+		file_cpptraj.write(' parm {} {}'.format(top_OneLigNoWat, parm_OneLigNoWat)+ter)
+		file_cpptraj.write(' '+ter)
+
+
+		file_cpptraj.write(' trajin {} 1 last 1 parm {}'.format(i, parm_OneLigNoWat)+ter) #missing arg	
+
+		file_cpptraj.write(' rms ToFirst :{}&!@H= first out rmsd_{}.dat nofit'.format(num_res_PROT+1, i[:-3])+ter)
+
+		file_cpptraj.write(' run '+ter)
+		file_cpptraj.write(' '+ter)
+		file_cpptraj.write('EOF'+ter)
+
+		file_cpptraj.close()
+
+		run_cpptraj = "./" + file_cpptraj_inp
+		os.system  ('chmod u+x {} '.format(run_cpptraj) )
+		os.system (run_cpptraj)
+
+		count_ligand += 1
+
+	if clean :
+		os.system  ('rm {} '.format(file_cpptraj_inp) )
+		os.system  ('rm {} '.format(file_cpptraj_out) )
+
+	return
+
+
+def cpptraj_bbRMSD(traj_file, clean=False):
+
+	parm_OneLigNoWat = "[OneLigNoWat]"
+	count_ligand = num_res_PROT + 1
+	top_OneLigNoWat = "OneLig.NoWat." + top_file
+
+	for i in traj_file:
+
+		name_nc_lig = "lig_" + str(count_ligand) + ".nc"
+
+
+		file_cpptraj_inp  = "Dinptrj_rmsd"
+		file_cpptraj_out  = "Dinptrj_rmsd.out"
+		file_cpptraj      = open (file_cpptraj_inp,"w")
+	
+		file_cpptraj.write('cpptraj > {} << EOF'.format(file_cpptraj_out)+ter)
+		file_cpptraj.write(' parm {} {}'.format(top_OneLigNoWat, parm_OneLigNoWat)+ter)
+		file_cpptraj.write(' '+ter)
+
+
+		file_cpptraj.write(' trajin {} 1 last 1 parm {}'.format(i, parm_OneLigNoWat)+ter) #missing arg	
+
+
+		file_cpptraj.write(' rms ToFirst :{}-{}@CA,C,N first out bb_{}.dat'.format(1, num_res_PROT, i[:-3])+ter)
+		file_cpptraj.write(' run '+ter)
+		file_cpptraj.write(' '+ter)
+		file_cpptraj.write('EOF'+ter)
+
+		file_cpptraj.close()
+
+		run_cpptraj = "./" + file_cpptraj_inp
+		os.system  ('chmod u+x {} '.format(run_cpptraj) )
+		os.system (run_cpptraj)
+
+		count_ligand += 1
+
+	if clean :
+		os.system  ('rm {} '.format(file_cpptraj_inp) )
+		os.system  ('rm {} '.format(file_cpptraj_out) )
+
+
+def read_prot(pdb):
 	ABC = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z']
 	abc = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z']
 	protein = ['SER','THR','GLN','ASN','TYR','CYS','CYX','CYM','GLY',  \
@@ -169,12 +264,12 @@ def read_prot (pdb):
 	membrane  = ['PA','PC','OL']
 	cofactor  = ['GTP','ATP']
 	ionscofac = ['MG','CA']
-# print ( '    ... Reading     : {}  '.format(pdb) ) 
+	log.write( '    ... Reading     : {}  \n'.format(pdb) ) 
 	file_pdb  = open (pdb)
 	num_lines = 0
 	for lines in file_pdb :
 		num_lines += 1
-# print ( "    ... There are = ",num_lines," Lines " )
+	log.write( "    ... There are = " + str(num_lines) + " Lines \n" )
 	file_pdb  = open (pdb)
 
 	num_atoms     = 0
@@ -210,7 +305,6 @@ def read_prot (pdb):
 					z_prot.append (float(values [7]))
 			else :
 				values=line.split()
-				print ( values )
 				atom_name_lig.append (values [2])
 				resi_name_lig   = values [3]
 				chain_lig = values [4]
@@ -227,7 +321,7 @@ def read_prot (pdb):
 	return num_atoms, num_atoms_lig, resi_name_lig, at_CA
 
 
-
+# this function returns the residue number of the binding site
 
 def calc_BindingSite (lig_num,num_at_prot,num_at_lig,dis_lig_prot_min,at_CA) :
 
@@ -253,7 +347,7 @@ def calc_BindingSite (lig_num,num_at_prot,num_at_lig,dis_lig_prot_min,at_CA) :
 			disAB = sqrt( (xA-xB)*(xA-xB) + (yA-yB)*(yA-yB) + (zA-zB)*(zA-zB) )
 			if disAB > dis_intra_MAX :
 				dis_intra_MAX = disAB
-	print ( "    ... Ligand GC   {:7.3f} {:7.3f} {:7.3f} Max Intra-Dist {:7.3f} ".format(x_gc,y_gc,z_gc,dis_intra_MAX))
+	log.write( "    ... Ligand GC   {:7.3f} {:7.3f} {:7.3f} Max Intra-Dist {:7.3f} \n".format(x_gc,y_gc,z_gc,dis_intra_MAX))
 
 	res_inBS = []
 	dis_LIM = dis_intra_MAX + dis_lig_prot_min
@@ -277,7 +371,7 @@ def calc_BindingSite (lig_num,num_at_prot,num_at_lig,dis_lig_prot_min,at_CA) :
 
 	num_resBS = len(res_inBS)
 
-	print ( "    ... There are  {:4} Protein Residues in this Binding Site ".format(num_resBS))
+	log.write( "    ... There are  {:4} Protein Residues in this Binding Site \n".format(num_resBS))
 
 	if num_resBS != 0:
 
@@ -289,17 +383,15 @@ def calc_BindingSite (lig_num,num_at_prot,num_at_lig,dis_lig_prot_min,at_CA) :
 		line_wrt += str(res_inBS[res]) + ' '
 		llista  += (str(res_inBS[res])) + ","
 
-	print("lig_" + str(lig_num))
-	print(llista[:-1])
-	lig_BS["lig_" + str(lig_num)] = llista[:-1].split(",")
-	print("ARA")
-
+	lig_BS["lig_" + str(countlig)] = llista[:-1].split(",")
+	info[dyn]["lig_" + str(countlig)] = llista[:-1].split(",") 	
+	
 	if num_resBS != 0:
 		fileBS.write( line_wrt + '\n' )
 
-	print ( "    ... RESIDUES : " )
-	print ( line_wrt )
-	print ( "... ... " )
+	log.write ( "    ... RESIDUES : \n" )
+	log.write ( line_wrt + "\n" )
+	log.write ( "... ... \n" )
 
 	for at in range (num_resBS) :
 		res_pos = res_inBS [at]
@@ -307,97 +399,91 @@ def calc_BindingSite (lig_num,num_at_prot,num_at_lig,dis_lig_prot_min,at_CA) :
 		x_CA    = x_prot   [CA_pos-1]
 		y_CA    = y_prot   [CA_pos-1]
 		z_CA    = z_prot   [CA_pos-1]
-		print ( "    ... CA({}) :  {:7.3f} {:7.3f} {:7.3f} ".format(res_pos,x_CA,y_CA,z_CA))
-
+		log.write ( "    ... CA({}) :  {:7.3f} {:7.3f} {:7.3f} \n".format(res_pos,x_CA,y_CA,z_CA))
+	log.write("\n\n\n")
 	return num_resBS,res_inBS
 
 
+# this function will count the binding sites found in all dynamics, taking into account repetitions 
 
 def binding_sites_ALL(lig, dyn_num):
 
-	if os.path.exists("{}_BS_all.txt".format(lig)):
-		os.system("rm {}_BS_all.txt".format(lig))
 
-	os.system("touch {}_BS_all.txt".format(lig))
+	if os.path.exists("{}_BS_all_new.txt".format(lig)):
+		os.system("rm {}_BS_all_new.txt".format(lig))
+
+	if os.path.exists(" {}_temp_table.tsv".format(lig)):
+		os.system("rm {}_temp_table.tsv".format(lig))
 
 
-	with open("{}_BS_all.txt".format(lig), "w") as aBS:
+	os.system("touch {}_temp_table.tsv".format(lig))
+	os.system("touch {}_BS_all_new.txt".format(lig))
+
+	fileBS = open("{}_BS_all_new.txt", "w")
+ 
+	with open("{}_temp_table.tsv".format(lig), "w") as aBS:
+		
+		aBS.write("lignum\tdynnum\tBS\n")
 
 		count = 1
 		bss = []
-		BS_mat = [[False for i in range(dyn_num)]]
 
-		for dyn in range(1, dyn_num+1):
-			os.chdir("{}/dyn_{}/TTMD".format(lig, dyn))
-			numlines = int(subprocess.check_output("cat reactive_trajs_First.txt | wc -l", shell=True).decode("utf-8"))
+		for dyns in info:
+			dynnum = int(dyns)
+			for ligs in info[dyns]:
+				lignum = ligs
+				BS = set(info[dynnum][lignum])
+				
+				
+				if len(bss) == 0:
+					aBS.write("{}\t{}\tBS{}\n".format(lignum, dynnum, count))
+					fileBS.write("BS{}\n{}\n\n".format(count, ' '.join(BS)))
+					bss.append(BS)
+					count += 1
+					
+				elif BS == {''}:
+					aBS.write("{}\t{}\tNone\n".format(lignum, dynnum))
+	
+				else:
+					is_in_list = False
 
-			if numlines != 0:
-				file_to_open = subprocess.check_output("ls | grep *_BS.dat", shell=True).decode("utf-8").strip()
-				BS_file = open(file_to_open, "r")
+					for BS_in_list in range(len(bss)):
+						inter = len(BS & bss[BS_in_list])
+						union = len(BS | bss[BS_in_list])
+						if union == 0 or inter / union > 0.25:
+							is_in_list = True
+							aBS.write("{}\t{}\tBS{}\n".format(lignum, dynnum, BS_in_list+1))
+							break
 
-				for line in range(0, numlines, 2):
-					num_prot = BS_file.readline()			
-					resids = BS_file.readline()
-					nums = set(resids.strip().split())
-
-					if len(bss) == 0:
-						aBS.write('BS{}\n'.format(count)+num_prot+resids)
-						bss.append(nums)
+					if not is_in_list:
+						aBS.write("{}\t{}\tBS{}\n".format(lignum, dynnum, count))
+						fileBS.write("BS{}\n{}\n\n".format(count, ' '.join(BS)))
+						bss.append(BS)
 						count += 1
-						BS_mat[0][dyn-1] = True
 						
-					elif len(nums) != 0:
-						is_in_list = False
-
-						for bs in range(len(bss)):
-							inter = len(nums & bss[bs])
-							union = len(nums | bss[bs])
-
-							if union == 0 or inter / union > 0.25:
-								is_in_list = True
-								BS_mat[bs][dyn-1] = True
-								break
-
-
-						if not is_in_list:
-							aBS.write('BS{}\n'.format(count)+num_prot+resids)
-							bss.append(nums)
-							BS_mat.append([False for i in range(dyn_num)])
-							BS_mat[-1][dyn-1] = True
-							count += 1
-				BS_file.close()
-			os.chdir("../../..")
-		app_bs = {}
-		numbs = 1
-		fn = "{}_BS_appearance.txt".format(lig)
-		if os.path.exists(fn):
-			os.system("rm "+fn)
-
-
-		with open(fn, "x") as f:
-			for i in BS_mat:
-				f.write("BS{} ".format(numbs) + str(sum(i)) + "\n")
-				numbs += 1
-
-
-	bscount = 1
-	print("\tdyn_1\tdyn_2")
-	for i in BS_mat:
-		print("BS{}\t".format(bscount), end='')
-		for j in i:
-			print(j, end = "\t")
-		bscount += 1
-		print()
+	fileBS.close()
 	return
 
 
 
 ##### MAIN PROGRAM #####
 
+### VALUES FOR ALL THE FUNCTIONS (OR SOME OF THEM) ###
+
+# values extracted from the GET_RES_from_top function
 global ter, top_file, num_res_prot, num_lig, name_res_lig, pos_LIG, pos_lig_NoWat, num_res_COFTOT, num_res_PROT
+
+# information about the residues from the receptor 
 global  x_prot, y_prot, z_prot, at_name, res_name, res_num
+
+# information about the residues from the ligand
 global  x_lig, y_lig, z_lig, atom_name_lig, resi_name_lig
-global fileBS, countlig
+
+# counters for the files generated and accessed
+global fileBS, countlig, info, dyn
+
+# log file
+global log
 
 ter = "\n"
 
@@ -407,51 +493,80 @@ ligs = []
 DIR      = os.getcwd()
 list_DIR = os.listdir(DIR)
 for files in list_DIR :
-        exist_dir = os.path.isdir(files)
-        if exist_dir :
-                ligs.append(files)
+	if files != "graphs":
+	        exist_dir = os.path.isdir(files)
+        	if exist_dir:
+		        ligs.append(files)
 ligs.sort()
-ligs = ligs[1:]
 
+if os.path.exists("TTMDAnalysis.log"):
+	os.system("rm TTMDAnalysis.log")
 
+log = open("TTMDAnalysis.log", "x")
+
+log.write('''
+-----------------------------------------------------------------------------------
+| 										  |
+| THERMAL TITRATION ANALYSIS							  |
+|										  |
+| Here we will have information about how the treatment of the trajectory file	  |
+| has been working and the binding sites found.					  |
+|										  |
+-----------------------------------------------------------------------------------
+''')
 for lig in ligs:
 
 	os.chdir(lig)
-	print('\n :::WORKING ON {}:::\n'.format(lig))
-	dyn_num = int(subprocess.check_output("ls | grep 'dyn*' | wc -l", shell=True))
+	log.write('\n :::WORKING ON {}:::\n\n'.format(lig))
+	dyn_num = int(subprocess.check_output("ls | grep 'dyn_' | wc -l", shell=True))
+	info = {}
 
-	for i in range(1, dyn_num+1):	
+	for dyn in range(1, dyn_num+1):	
 
-		os.chdir("dyn_{}".format(i))
-		print('\t:::WORKING ON DYN_{}:::\n'.format(i))
-		check_files(lig, i)
+		os.chdir("dyn_{}".format(dyn))
+		log.write('\t:::WORKING ON DYN_{}:::\n\n'.format(dyn))
+		check_files(lig, dyn)
 		
 
 		os.chdir("TTMD")
-		if i == 1:
+		if dyn == 1:
 			top_file = subprocess.check_output("ls *top | grep -v NoWat",shell=True).decode("utf-8").strip()
 
 
-		print("\t... Reading top file")
+		log.write("\t... Reading top file\n")
 		num_res_prot,num_lig,name_res_lig,pos_LIG,pos_lig_NoWat,num_res_COFTOT = GET_RES_from_top (top_file)
 		num_res_PROT = num_res_prot + num_res_COFTOT
+		log.write("\tSUCCESS\n")		
 
-		print("\t... cpptrajs")
+		log.write("\t... cpptrajs\n")
 
-		print("\t\t... removing waters")
+		log.write("\t\t... removing waters\n")
 		outfile = cpptraj_rmWat(lig)
+		log.write("\t\tSUCCESS\n")
 
-		print("\t\t... separating ligands")
+		log.write("\t\t... separating ligands\n")
 		solo_trajs = cpptraj_LigByLig(outfile)
+		log.write("\t\tSUCCESS\n")
 
-		print("\t\t... extracting PDB from first image")
+
+		log.write("\t\t... extracting PDB from first image\n")
 		outPDBs = cpptraj_OutPDBFirst(solo_trajs)
+		log.write("\t\tSUCCESS\n")
 
-		print("\t\t... checking reactive trajs")
-		dis_prot_lig_min = 9
+		log.write("\t\t... extracting RMSD scores\n")
+		cpptraj_RMSD(solo_trajs)
+		cpptraj_bbRMSD(solo_trajs)
+		log.write("\t\tSUCCESS\n")
+		log.write("\t\t... checking reactive trajs\n")
+		dis_prot_lig_min = 5
 		countlig = num_res_PROT + 1
-		if_reactive = open("reactive_trajs_First.txt", "w")
-		fileBS      = open ('lig_' + str(num_lig) + '_BS.dat',"w")
+
+		tbl     = open("temp_table.tsv", "w")
+		fileBS  = open ('lig_' + str(num_lig) + '_BS.dat',"w")
+		tbl.write("ligand\tdyn_num\tBS\tMS\n")
+		
+		info[dyn] = {}
+		log.write("\nworking in lig_" + str(num_lig) + "\n")
 		for pdb in outPDBs:
 
 			x_prot = []
@@ -473,18 +588,11 @@ for lig in ligs:
 			num_atoms, num_atoms_lig, resi_name_lig, at_CA = read_prot(pdb)
 			num_resBS, res_inBS = calc_BindingSite(num_lig, num_atoms, num_atoms_lig, dis_prot_lig_min, at_CA)
 
-			if num_resBS == 0:
-				if_reactive.write("0-{} --> Non-Reactive\n".format(countlig))
-			else:
-				if_reactive.write("1-{} --> Reactive\n".format(countlig))
-
 			countlig += 1
-		if_reactive.close()
+
+		tbl.close()
 		fileBS.close()
 
 		os.chdir("../..")
 	os.chdir("..")
-	binding_sites_ALL(lig, dyn_num)	
-
-
-	
+	binding_sites_ALL(lig, dyn_num)

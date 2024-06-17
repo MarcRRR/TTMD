@@ -63,21 +63,20 @@ def check(lig, params):	# checks all needed files are present and runs create_am
 	if os.path.exists(lig):
 		os.chdir(lig)
 		print("\nNow working on ligand {}\n".format(lig))
-		dyn_num = int(subprocess.check_output("ls | grep 'dyn*' | wc -l", shell=True))
+		dyn_num = int(subprocess.check_output("ls | grep 'dyn_' | wc -l", shell=True))
 		for i in range(1, dyn_num+1):
 			
 
 # we create a TTMD folder for our analyses inside of the dynamic folder. We remove TTMD if it is already existing for a new analysis
 			os.chdir("dyn_"+str(i))
 			print("\n ... Now working on dyn_{}\n".format(i))
-			exist_dir = os.path.isdir("TTMD")
-			if exist_dir :
-				try:
-					print(" ... removing TTMD")
-					os.system("rm -f -r TTMD")
-					os.mkdir ('TTMD')
-				except:
-					os.mkdir ('TTMD')
+			if os.path.exists("TTMD") :
+
+				print(" ... removing TTMD")
+				os.system("rm -f -r TTMD")
+				os.mkdir ('TTMD')
+			else:
+				os.mkdir ('TTMD')
 
 # checking if a dyn folder is present to take needed files. if not, the files are present in the working directory
 
@@ -88,15 +87,15 @@ def check(lig, params):	# checks all needed files are present and runs create_am
 
 
 
-			if os.path.exists("dyn_"+str(i)+"/dyn"):
+			if os.path.exists("dyn/"):
 
 				try:
 					os.system("cp dyn/"+top_file+" TTMD")
 				except:
 					print("no topology file found in dyn_"+str(i))
 				
-					
-				rst_files = subprocess.check_output("ls *.rst").decode("utf-8").strip().split()
+				os.chdir("dyn")		
+				rst_files = subprocess.check_output("ls *rst", shell=True).decode("utf-8").strip().split()
 				maxnum_rst = 0
 				maxnum_gam = 0
 				for f in rst_files:
@@ -115,7 +114,7 @@ def check(lig, params):	# checks all needed files are present and runs create_am
 				rst_file = "{}_{}_dyn.rst".format(lig, maxnum_rst)
 				gam_file = "{}_{}_dyn.gamd_rst".format(lig, maxnum_gamd)
 
-
+				os.chdir ("..")
 				try:
 					os.system("cp dyn/"+rst_file+" TTMD")
 					os.system("cp dyn/"+gam_file+" TTMD")
@@ -353,7 +352,7 @@ def GEN_batch_mfg_GaMD0 (name_frag,filename,top_file_name,rst_file,NUM_dyn) :
 def run(lig): # Generates executable files for calculation sending to different queues
 
 	os.chdir(lig)
-	dyn_num = int(subprocess.check_output("ls | grep 'dyn*' | wc -l", shell=True))
+	dyn_num = int(subprocess.check_output("ls | grep 'dyn_' | wc -l", shell=True))
 	
 	for i in range(1, dyn_num+1):
 
