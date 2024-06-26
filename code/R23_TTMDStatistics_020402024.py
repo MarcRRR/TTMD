@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
 import sys
+from scipy.stats import linregress
 
 
 def graph_affinity(list_x, list_y, title, label, name, slope_start=0):
@@ -20,7 +21,7 @@ def graph_affinity(list_x, list_y, title, label, name, slope_start=0):
 
 	try:
 		f = np.poly1d(np.polyfit(list_x, list_y, 1))
-		slope = f[0]
+		slope, intercet, r_value, p_value, std_err = linregress(list_x, list_y)
 		axs.plot(list_x, f(list_x), ls='--', color='red', label="MS = {:.5f}".format(slope))
 
 
